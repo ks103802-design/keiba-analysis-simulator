@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>競馬分析シミュレーター 試作版</title>
+<style>
+:root{--navy:#142b3b;--green:#17664d;--gold:#d6b66d;--paper:#f5f6f3;--ink:#20313b;--muted:#64737a;--line:#dbe2df}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:var(--navy);color:white;padding:22px 18px 20px;border-bottom:4px solid var(--gold)}header .eyebrow{font-size:12px;letter-spacing:.14em;color:#d9c88f}h1{font-size:23px;margin:7px 0 5px}header p{font-size:13px;color:#d5e0e3;margin:0;line-height:1.6}
+main{max-width:1000px;margin:auto;padding:16px 12px 48px}.notice{background:#fff8e7;border:1px solid #ead7a5;padding:12px 14px;border-radius:10px;font-size:12px;line-height:1.7;margin-bottom:14px}
+.card{background:white;border:1px solid var(--line);border-radius:13px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #20313b08}h2{font-size:17px;margin:0 0 13px;display:flex;align-items:center;gap:8px}h2 span{background:#e8f1ed;color:var(--green);border-radius:7px;padding:4px 7px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.field label{display:block;font-size:12px;font-weight:700;margin:0 0 5px;color:#52616a}.field input,.field select{width:100%;min-width:0;border:1px solid #cbd5d2;border-radius:8px;padding:10px;font:inherit;background:#fff;color:var(--ink)}.field input:focus,.field select:focus{outline:2px solid #9fcdbb;border-color:var(--green)}
+.small{font-size:12px;color:var(--muted);line-height:1.6}.horse-list{display:grid;gap:12px}.horse{border:1px solid var(--line);border-radius:11px;padding:13px;background:#fcfdfc}.horse-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.horse-head strong{font-size:14px}.horse-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.horse-fields .wide{grid-column:span 2}
+button{border:0;border-radius:9px;padding:11px 14px;font-weight:700;cursor:pointer;font-size:14px}.primary{background:var(--green);color:white}.secondary{background:#eaf1ee;color:var(--green)}.danger{background:#f8e9e6;color:#9b3c2c}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.runrow{display:flex;align-items:end;gap:10px;flex-wrap:wrap}.runrow .field{width:180px}.runrow button{min-height:41px}
+#results{display:none}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.metric{background:#f0f5f2;border-radius:10px;padding:12px}.metric span{display:block;color:var(--muted);font-size:11px}.metric strong{font-size:22px;color:var(--green)}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th,td{text-align:right;padding:10px 8px;border-bottom:1px solid var(--line)}th{background:#f4f7f5;color:#52616a;font-size:11px}td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}.bar{height:6px;background:#e4ebe7;border-radius:9px;overflow:hidden;margin-top:4px;min-width:55px}.bar i{display:block;height:100%;background:var(--green)}.footer{font-size:11px;color:var(--muted);line-height:1.7;margin-top:12px}.empty{padding:22px;text-align:center;color:var(--muted);font-size:13px}
+@media(max-width:640px){h1{font-size:20px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.horse-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.horse-fields .wide{grid-column:span 2}.summary{grid-template-columns:repeat(3,minmax(0,1fr))}.metric strong{font-size:18px}.card{padding:13px}main{padding:12px 9px 32px}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">RACE DATA LAB · PROTOTYPE 0.1</div><h1>競馬分析シミュレーター</h1><p>過去の競走成績を入力し、仮の能力モデルでレース結果を反復シミュレーションします。</p></header>
+<main>
+<div class="notice"><strong>試作版について</strong><br>ここで表示する確率は、入力データから作った簡易モデルによる試算です。実際の競走データで検証された予測ではなく、馬券購入の判断を保証するものではありません。最初は架空データが入っています。</div>
+<section class="card">
+<h2><span>01</span> レース条件</h2>
+<div class="grid">
+<div class="field"><label for="track">競馬場</label><select id="track"><option>東京</option><option>中山</option><option>京都</option><option>阪神</option><option>中京</option><option>新潟</option><option>福島</option><option>小倉</option><option>札幌</option><option>函館</option></select></div>
+<div class="field"><label for="surface">コース</label><select id="surface"><option>芝</option><option>ダート</option></select></div>
+<div class="field"><label for="distance">距離（m）</label><input id="distance" type="number" min="800" max="4000" step="100" value="1600"></div>
+<div class="field"><label for="going">馬場状態</label><select id="going"><option>良</option><option>稍重</option><option>重</option><option>不良</option></select></div>
+<div class="field"><label for="weather">天候</label><select id="weather"><option>晴</option><option>曇</option><option>雨</option><option>小雨</option><option>雪</option></select></div>
+<div class="field"><label for="raceName">レース名（任意）</label><input id="raceName" placeholder="例：秋のマイル戦"></div>
+</div>
+</section>
+<section class="card">
+<h2><span>02</span> 出走馬・過去成績</h2>
+<p class="small">馬名・騎手に加え、過去成績の平均着順、平均走破タイム（秒）、平均上がり3F（秒）、直近3走の平均着順を入力します。実際のデータを入れるときは、同じ距離・条件だけでなく、コースや馬場の違いも確認してください。</p>
+<div id="horses" class="horse-list"></div>
+<div class="actions"><button class="secondary" id="addHorse">＋ 出走馬を追加</button><button class="secondary" id="demo">サンプルデータに戻す</button></div>
+</section>
+<section class="card">
+<h2><span>03</span> シミュレーション</h2>
+<div class="runrow"><div class="field"><label for="runs">試行回数</label><select id="runs"><option value="100">100回（動作確認）</option><option value="1000" selected>1,000回</option><option value="10000">10,000回</option><option value="50000">50,000回</option></select></div><button class="primary" id="simulate">シミュレーションを実行</button></div>
+<p class="small">各試行で馬ごとの仮スコアにランダムな変動を加え、順位を決めます。同点はランダムに処理します。</p>
+</section>
+<section class="card" id="results">
+<h2><span>04</span> 分析結果</h2>
+<div id="raceSummary" class="small" style="margin-bottom:12px"></div>
+<div class="summary"><div class="metric"><span>試行回数</span><strong id="metricRuns">—</strong></div><div class="metric"><span>登録頭数</span><strong id="metricHorses">—</strong></div><div class="metric"><span>勝率1位</span><strong id="metricTop">—</strong></div></div>
+<div class="table-wrap"><table><thead><tr><th>順位</th><th>馬名 / 騎手</th><th>1着</th><th>勝率</th><th>連対率</th><th>3着内率</th><th>平均着順</th></tr></thead><tbody id="resultRows"></tbody></table></div>
+<p class="footer">勝率＝1着回数÷試行回数。連対率＝1・2着回数÷試行回数。3着内率＝1〜3着回数÷試行回数。試行回数が少ないほど結果のばらつきが大きくなります。現段階ではコース・馬場・騎手・走破タイムの補正は未検証の簡易評価で、予測精度を保証しません。</p>
+<div class="actions"><button class="secondary" id="export">結果をCSV保存</button></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let horses=[];
+function makeHorse(data={}){return {id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),name:data.name||"",jockey:data.jockey||"",draw:data.draw??horses.length+1,age:data.age??4,avgFinish:data.avgFinish??6,avgTime:data.avgTime??96,avgLast3f:data.avgLast3f??35.5,recentFinish:data.recentFinish??5,starts:data.starts??5,winRate:data.winRate??0.1};}
+function sample(){horses=[];[
+{name:"サクラブレイブ",jockey:"騎手A",draw:1,age:4,avgFinish:3.2,avgTime:94.8,avgLast3f:34.1,recentFinish:2.0,starts:8,winRate:.25},
+{name:"ミライスター",jockey:"騎手B",draw:2,age:5,avgFinish:4.1,avgTime:95.2,avgLast3f:34.4,recentFinish:4.0,starts:10,winRate:.2},
+{name:"オーシャンベル",jockey:"騎手C",draw:3,age:3,avgFinish:5.3,avgTime:95.6,avgLast3f:34.0,recentFinish:3.0,starts:6,winRate:.17},
+{name:"スノーリボン",jockey:"騎手D",draw:4,age:4,avgFinish:6.0,avgTime:96.1,avgLast3f:35.0,recentFinish:7.0,starts:9,winRate:.11}
+].forEach(h=>horses.push(makeHorse(h)));renderHorses();}
+function numInput(label,key,val,step="1",min="0"){return `<div class="field"><label>${label}</label><input type="number" data-key="${key}" value="${val}" step="${step}" min="${min}"></div>`}
+function textInput(label,key,val){return `<div class="field"><label>${label}</label><input type="text" data-key="${key}" value="${esc(val)}" maxlength="60"></div>`}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderHorses(){const box=$("horses");if(!horses.length){box.innerHTML='<div class="empty">出走馬を追加してください。</div>';return;}
+box.innerHTML=horses.map((h,i)=>`<div class="horse" data-id="${h.id}"><div class="horse-head"><strong>出走馬 ${i+1}</strong><button class="danger remove" type="button">削除</button></div><div class="horse-fields">
+<div class="wide">${textInput("馬名","name",h.name)}</div><div class="wide">${textInput("騎手名","jockey",h.jockey)}</div>
+${numInput("馬番","draw",h.draw,"1","1")}${numInput("年齢","age",h.age,"1","2")}
+${numInput("過去の平均着順","avgFinish",h.avgFinish,"0.1","1")}${numInput("直近3走の平均着順","recentFinish",h.recentFinish,"0.1","1")}
+${numInput("平均走破タイム（秒）","avgTime",h.avgTime,"0.1","40")}${numInput("平均上がり3F（秒）","avgLast3f",h.avgLast3f,"0.1","25")}
+${numInput("過去の出走数","starts",h.starts,"1","1")}${numInput("過去の勝率（0〜1）","winRate",h.winRate,"0.01","0")}
+</div></div>`).join("");
+box.querySelectorAll(".horse").forEach(el=>{const id=el.dataset.id;el.querySelector(".remove").onclick=()=>{horses=horses.filter(h=>h.id!==id);renderHorses();};el.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",()=>{const h=horses.find(x=>x.id===id);if(!h)return;const k=inp.dataset.key;h[k]=["name","jockey"].includes(k)?inp.value:Number(inp.value);if(k==="winRate")h[k]=Math.max(0,Math.min(1,h[k]));});});});}
+$("addHorse").onclick=()=>{if(horses.length>=30){alert("試作版では最大30頭です。");return;}horses.push(makeHorse());renderHorses();};
+$("demo").onclick=sample;
+function scoreHorse(h){ // Transparent prototype heuristic, not a calibrated racing model.
+ const finishScore=(18-Math.min(18,Math.max(1,h.avgFinish)))/17;
+ const recentScore=(18-Math.min(18,Math.max(1,h.recentFinish)))/17;
+ const timeScore=1/(1+Math.max(0,h.avgTime-80)/8);
+ const closingScore=1/(1+Math.max(0,h.avgLast3f-30)/2.5);
+ const experience=Math.min(1,Math.log1p(Math.max(0,h.starts))/Math.log(21));
+ const prior=Math.max(0,Math.min(1,h.winRate));
+ return 0.32*finishScore+0.22*recentScore+0.22*timeScore+0.10*closingScore+0.08*experience+0.06*prior;
+}
+let lastResults=[];
+$("simulate").onclick=()=>{
+ // collect current input values, including values not yet blurred
+ document.querySelectorAll(".horse").forEach(el=>{const h=horses.find(x=>x.id===el.dataset.id);if(!h)return;el.querySelectorAll("input").forEach(inp=>{let k=inp.dataset.key;h[k]=["name","jockey"].includes(k)?inp.value:Number(inp.value);});});
+ if(horses.length<2){alert("シミュレーションには2頭以上登録してください。");return;}
+ if(horses.some(h=>!h.name.trim())){alert("すべての馬に馬名を入力してください。");return;}
+ const runs=Number($("runs").value), counts=horses.map(h=>({horse:h,first:0,top2:0,top3:0,rankSum:0}));
+ const base=horses.map(scoreHorse);
+ for(let r=0;r<runs;r++){
+   const order=counts.map((c,i)=>({i,score:base[i]+(Math.random()-0.5)*0.42+(Math.random()+Math.random()-1)*0.16})).sort((a,b)=>b.score-a.score);
+   order.forEach((o,rank)=>{const c=counts[o.i];c.rankSum+=rank+1;if(rank===0)c.first++;if(rank<2)c.top2++;if(rank<3)c.top3++;});
+ }
+ lastResults=counts.map(c=>({...c,win:c.first/runs,quinella:c.top2/runs,place:c.top3/runs,avgRank:c.rankSum/runs})).sort((a,b)=>b.win-a.win);
+ $("results").style.display="block";$("metricRuns").textContent=runs.toLocaleString()+"回";$("metricHorses").textContent=horses.length+"頭";$("metricTop").textContent=lastResults[0].horse.name;
+ $("raceSummary").textContent=`${$("raceName").value||"名称未設定のレース"}｜${$("track").value}競馬場・${$("surface").value}${$("distance").value}m・${$("going").value}・${$("weather").value}`;
+ $("resultRows").innerHTML=lastResults.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${esc(r.horse.name)}</strong><br><span class="small">${esc(r.horse.jockey||"騎手未登録")} · ${r.horse.draw}番</span></td><td>${r.first.toLocaleString()}</td><td><strong>${(r.win*100).toFixed(1)}%</strong><div class="bar"><i style="width:${r.win*100}%"></i></div></td><td>${(r.quinella*100).toFixed(1)}%</td><td>${(r.place*100).toFixed(1)}%</td><td>${r.avgRank.toFixed(2)}着</td></tr>`).join("");
+ $("results").scrollIntoView({behavior:"smooth",block:"start"});
+};
+$("export").onclick=()=>{if(!lastResults.length)return;const rows=[["順位","馬名","騎手","馬番","1着回数","勝率","連対率","3着内率","平均着順"],...lastResults.map((r,i)=>[i+1,r.horse.name,r.horse.jockey,r.horse.draw,r.first,(r.win*100).toFixed(2)+"%",(r.quinella*100).toFixed(2)+"%",(r.place*100).toFixed(2)+"%",r.avgRank.toFixed(2)])];const csv="\uFEFF"+rows.map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="競馬シミュレーション結果.csv";a.click();URL.revokeObjectURL(a.href);};
+sample();
+</script>
+</body></html>
